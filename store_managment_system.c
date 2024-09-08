@@ -2,6 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+    #define CLEAR_SCREEN "cls"
+#else
+    #define CLEAR_SCREEN "clear"
+#endif
+
 #define MAX_PRODUCTS 100
 #define MAX_BILLS 100
 #define MAX_NAME_LENGTH 50
@@ -29,6 +35,10 @@ int num_bills = 0;
 
 void save_products() {
     FILE *fp = fopen("products.dat", "wb");
+    if (fp == NULL) {
+        printf("Error saving products!\n");
+        return;
+    }
     fwrite(&num_products, sizeof(int), 1, fp);
     fwrite(products, sizeof(Product), num_products, fp);
     fclose(fp);
@@ -45,6 +55,10 @@ void load_products() {
 
 void save_bills() {
     FILE *fp = fopen("bills.dat", "wb");
+    if (fp == NULL) {
+        printf("Error saving bills!\n");
+        return;
+    }
     fwrite(&num_bills, sizeof(int), 1, fp);
     fwrite(bills, sizeof(Bill), num_bills, fp);
     fclose(fp);
@@ -59,30 +73,53 @@ void load_bills() {
     }
 }
 
+int get_valid_int(const char *prompt) {
+    int input;
+    while (1) {
+        printf("%s", prompt);
+        if (scanf("%d", &input) == 1) {
+            return input;
+        } else {
+            printf("Invalid input! Please enter a valid number.\n");
+            while (getchar() != '\n'); // Clear input buffer
+        }
+    }
+}
+
+float get_valid_float(const char *prompt) {
+    float input;
+    while (1) {
+        printf("%s", prompt);
+        if (scanf("%f", &input) == 1) {
+            return input;
+        } else {
+            printf("Invalid input! Please enter a valid number.\n");
+            while (getchar() != '\n'); // Clear input buffer
+        }
+    }
+}
+
 void add_product() {
     if (num_products < MAX_PRODUCTS) {
         Product new_product;
         new_product.id = num_products + 1;
         printf("Enter product name: ");
         scanf("%s", new_product.name);
-        printf("Enter quantity: ");
-        scanf("%d", &new_product.quantity);
-        printf("Enter price: ");
-        scanf("%f", &new_product.price);
+        new_product.quantity = get_valid_int("Enter quantity: ");
+        new_product.price = get_valid_float("Enter price: ");
 
         products[num_products] = new_product;
         num_products++;
 
         save_products();
+        printf("Product added successfully!\n");
     } else {
         printf("Product list is full!\n");
     }
 }
 
 void delete_product() {
-    int id;
-    printf("Enter product ID to delete: ");
-    scanf("%d", &id);
+    int id = get_valid_int("Enter product ID to delete: ");
 
     int found = 0;
     for (int i = 0; i < num_products; i++) {
@@ -93,6 +130,7 @@ void delete_product() {
             }
             num_products--;
             save_products();
+            printf("Product deleted successfully!\n");
             break;
         }
     }
@@ -102,9 +140,7 @@ void delete_product() {
 }
 
 void edit_product() {
-    int id;
-    printf("Enter product ID to edit: ");
-    scanf("%d", &id);
+    int id = get_valid_int("Enter product ID to edit: ");
 
     int found = 0;
     for (int i = 0; i < num_products; i++) {
@@ -112,11 +148,10 @@ void edit_product() {
             found = 1;
             printf("Enter new name: ");
             scanf("%s", products[i].name);
-            printf("Enter new quantity: ");
-            scanf("%d", &products[i].quantity);
-            printf("Enter new price: ");
-            scanf("%f", &products[i].price);
+            products[i].quantity = get_valid_int("Enter new quantity: ");
+            products[i].price = get_valid_float("Enter new price: ");
             save_products();
+            printf("Product updated successfully!\n");
             break;
         }
     }
@@ -134,12 +169,10 @@ void create_bill() {
 
         int cont = 1;
         while (cont) {
-            int id, quantity;
-            printf("Enter product ID: ");
-            scanf("%d", &id);
-            printf("Enter quantity: ");
-            scanf("%d", &quantity);
+            int id = get_valid_int("Enter product ID: ");
+            int quantity = get_valid_int("Enter quantity: ");
 
+            int found = 0;
             for (int i = 0; i < num_products; i++) {
                 if (products[i].id == id && products[i].quantity >= quantity) {
                     new_bill.product_ids[new_bill.num_items] = id;
@@ -147,12 +180,15 @@ void create_bill() {
                     new_bill.total_amount += quantity * products[i].price;
                     products[i].quantity -= quantity;
                     new_bill.num_items++;
+                    found = 1;
                     break;
                 }
             }
+            if (!found) {
+                printf("Product not available or insufficient quantity!\n");
+            }
 
-            printf("Add more items? (1 for yes, 0 for no): ");
-            scanf("%d", &cont);
+            cont = get_valid_int("Add more items? (1 for yes, 0 for no): ");
         }
 
         bills[num_bills] = new_bill;
@@ -160,39 +196,30 @@ void create_bill() {
 
         save_bills();
         save_products();
+        printf("Bill created successfully!\n");
     } else {
         printf("Bill list is full!\n");
     }
 }
 
-void edit_bill() {
-    int id;
-    printf("Enter bill ID to edit: ");
-    scanf("%d", &id);
-
-    int found = 0;
-    for (int i = 0; i < num_bills; i++) {
-        if (bills[i].bill_id == id) {
-            found = 1;
-            create_bill();
-            break;
-        }
-    }
-    if (!found) {
-        printf("Bill not found!\n");
-    }
-}
-
 void display_products() {
+    printf("\nAvailable Products:\n");
+    printf("--------------------\n");
     for (int i = 0; i < num_products; i++) {
         printf("ID: %d, Name: %s, Quantity: %d, Price: %.2f\n", products[i].id, products[i].name, products[i].quantity, products[i].price);
     }
 }
 
 void display_bills() {
+    printf("\nBills:\n");
+    printf("-------\n");
     for (int i = 0; i < num_bills; i++) {
         printf("Bill ID: %d, Total Amount: %.2f\n", bills[i].bill_id, bills[i].total_amount);
     }
+}
+
+void clear_screen() {
+    system(CLEAR_SCREEN);
 }
 
 int main() {
@@ -202,17 +229,19 @@ int main() {
     int choice;
 
     do {
+        clear_screen();  // Clear the screen before displaying the menu
         printf("\nStore Management System\n");
         printf("1. Add Product\n");
         printf("2. Delete Product\n");
         printf("3. Edit Product\n");
         printf("4. Display Products\n");
         printf("5. Create Bill\n");
-        printf("6. Edit Bill\n");
-        printf("7. Display Bills\n");
+        printf("6. Display Bills\n");
         printf("0. Exit\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
+
+        clear_screen();  // Clear the screen before showing the output for selected option
 
         switch (choice) {
             case 1:
@@ -231,9 +260,6 @@ int main() {
                 create_bill();
                 break;
             case 6:
-                edit_bill();
-                break;
-            case 7:
                 display_bills();
                 break;
             case 0:
@@ -242,6 +268,9 @@ int main() {
             default:
                 printf("Invalid choice! Please try again.\n");
         }
+        printf("\nPress Enter to continue...");
+        getchar();  // Wait for user to press Enter
+        getchar();
     } while (choice != 0);
 
     return 0;
