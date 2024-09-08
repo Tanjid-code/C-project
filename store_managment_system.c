@@ -1,16 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h> // For isdigit()
+#include <ctype.h>
 
 #define MAX_PRODUCTS 100
 #define MAX_BILLS 100
 #define MAX_NAME_LENGTH 50
 
 #ifdef _WIN32
-    #define CLEAR "cls"  // Command for Windows
+#define CLEAR "cls"
 #else
-    #define CLEAR "clear" // Command for Linux/Unix/MacOS
+#define CLEAR "clear"
 #endif
 
 typedef struct {
@@ -33,6 +33,10 @@ int num_products = 0;
 
 Bill bills[MAX_BILLS];
 int num_bills = 0;
+
+void clear_screen() {
+    system(CLEAR);
+}
 
 void save_products() {
     FILE *fp = fopen("products.dat", "wb");
@@ -132,11 +136,14 @@ void edit_product() {
     }
 }
 
-int get_valid_int(const char* prompt) {
-    int val;
+int get_valid_int(const char *prompt) {
+    int value;
     printf("%s", prompt);
-    scanf("%d", &val);
-    return val;
+    while (scanf("%d", &value) != 1) {
+        printf("Invalid input. Please enter a valid number: ");
+        while (getchar() != '\n'); // Clear invalid input
+    }
+    return value;
 }
 
 void create_bill() {
@@ -210,7 +217,22 @@ void create_bill() {
 
         save_bills();
         save_products();
-        printf("Bill created successfully!\n");
+
+        // Display the bill voucher after creation
+        printf("\n--- Bill Voucher ---\n");
+        printf("Bill ID: %d\n", new_bill.bill_id);
+        printf("Items Purchased:\n");
+        for (int i = 0; i < new_bill.num_items; i++) {
+            for (int j = 0; j < num_products; j++) {
+                if (new_bill.product_ids[i] == products[j].id) {
+                    printf("Product: %s, Quantity: %d, Price: %.2f\n",
+                        products[j].name, new_bill.quantities[i], products[j].price);
+                    break;
+                }
+            }
+        }
+        printf("Total Amount: %.2f\n", new_bill.total_amount);
+        printf("----------------------\n");
     } else {
         printf("Bill list is full!\n");
     }
@@ -236,7 +258,8 @@ void edit_bill() {
 
 void display_products() {
     for (int i = 0; i < num_products; i++) {
-        printf("ID: %d, Name: %s, Quantity: %d, Price: %.2f\n", products[i].id, products[i].name, products[i].quantity, products[i].price);
+        printf("ID: %d, Name: %s, Quantity: %d, Price: %.2f\n",
+               products[i].id, products[i].name, products[i].quantity, products[i].price);
     }
 }
 
@@ -246,10 +269,6 @@ void display_bills() {
     }
 }
 
-void clear_screen() {
-    system(CLEAR);
-}
-
 int main() {
     load_products();
     load_bills();
@@ -257,7 +276,7 @@ int main() {
     int choice;
 
     do {
-        clear_screen(); // Clear screen before showing the menu
+        clear_screen();
         printf("\nStore Management System\n");
         printf("1. Add Product\n");
         printf("2. Delete Product\n");
@@ -269,8 +288,6 @@ int main() {
         printf("0. Exit\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
-
-        clear_screen(); // Clear screen after choice is entered
 
         switch (choice) {
             case 1:
@@ -300,11 +317,10 @@ int main() {
             default:
                 printf("Invalid choice! Please try again.\n");
         }
-        if (choice != 0) {
-            printf("\nPress Enter to continue...");
-            getchar(); // Wait for user input to continue
-            getchar();
-        }
+
+        printf("\nPress Enter to continue...");
+        while (getchar() != '\n'); // Wait for Enter key
+        getchar();
     } while (choice != 0);
 
     return 0;
