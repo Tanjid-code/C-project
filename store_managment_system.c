@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>  // Include time.h for date and time handling
 
 #define MAX_PRODUCTS 100
 #define MAX_BILLS 100
@@ -26,6 +27,7 @@ typedef struct {
     int quantities[MAX_PRODUCTS];
     int num_items;
     float total_amount;
+    char timestamp[20]; // Field to store the time of bill creation
 } Bill;
 
 Product products[MAX_PRODUCTS];
@@ -146,12 +148,21 @@ int get_valid_int(const char *prompt) {
     return value;
 }
 
+void get_current_timestamp(char *buffer, int length) {
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    strftime(buffer, length, "%Y-%m-%d %H:%M:%S", t);
+}
+
 void create_bill() {
     if (num_bills < MAX_BILLS) {
         Bill new_bill;
         new_bill.bill_id = num_bills + 1;
         new_bill.num_items = 0;
         new_bill.total_amount = 0.0;
+
+        // Capture current date and time
+        get_current_timestamp(new_bill.timestamp, sizeof(new_bill.timestamp));
 
         int cont = 1;
         while (cont) {
@@ -221,6 +232,7 @@ void create_bill() {
         // Display the bill voucher after creation
         printf("\n--- Bill Voucher ---\n");
         printf("Bill ID: %d\n", new_bill.bill_id);
+        printf("Date and Time: %s\n", new_bill.timestamp);
         printf("Items Purchased:\n");
         for (int i = 0; i < new_bill.num_items; i++) {
             for (int j = 0; j < num_products; j++) {
@@ -238,6 +250,18 @@ void create_bill() {
     }
 }
 
+void display_products() {
+    if (num_products == 0) {
+        printf("No products available.\n");
+    } else {
+        printf("Product List:\n");
+        printf("ID\tName\t\tQuantity\tPrice\n");
+        for (int i = 0; i < num_products; i++) {
+            printf("%d\t%-15s\t%d\t\t%.2f\n", products[i].id, products[i].name, products[i].quantity, products[i].price);
+        }
+    }
+}
+
 void edit_bill() {
     int id;
     printf("Enter bill ID to edit: ");
@@ -247,7 +271,25 @@ void edit_bill() {
     for (int i = 0; i < num_bills; i++) {
         if (bills[i].bill_id == id) {
             found = 1;
-            create_bill();
+            Bill *bill_to_edit = &bills[i];
+
+            // Display existing bill items
+            printf("\nEditing Bill ID: %d, Date: %s\n", bill_to_edit->bill_id, bill_to_edit->timestamp);
+            printf("Current Items:\n");
+            for (int j = 0; j < bill_to_edit->num_items; j++) {
+                for (int k = 0; k < num_products; k++) {
+                    if (bill_to_edit->product_ids[j] == products[k].id) {
+                        printf("Product: %s, Quantity: %d, Price: %.2f\n",
+                               products[k].name, bill_to_edit->quantities[j], products[k].price);
+                    }
+                }
+            }
+
+            // Modify the items in the bill
+            create_bill(); // Reuse the create_bill logic to modify the current bill
+            bills[i] = bills[num_bills - 1];  // Replace the old bill with the newly created one
+            num_bills--;  // Remove the extra bill that was added
+
             break;
         }
     }
@@ -256,16 +298,14 @@ void edit_bill() {
     }
 }
 
-void display_products() {
-    for (int i = 0; i < num_products; i++) {
-        printf("ID: %d, Name: %s, Quantity: %d, Price: %.2f\n",
-               products[i].id, products[i].name, products[i].quantity, products[i].price);
-    }
-}
-
 void display_bills() {
-    for (int i = 0; i < num_bills; i++) {
-        printf("Bill ID: %d, Total Amount: %.2f\n", bills[i].bill_id, bills[i].total_amount);
+    if (num_bills == 0) {
+        printf("No bills available.\n");
+    } else {
+        printf("Bill List:\n");
+        for (int i = 0; i < num_bills; i++) {
+            printf("Bill ID: %d, Total Amount: %.2f, Date: %s\n", bills[i].bill_id, bills[i].total_amount, bills[i].timestamp);
+        }
     }
 }
 
