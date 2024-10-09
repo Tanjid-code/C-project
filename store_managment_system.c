@@ -106,8 +106,14 @@ void add_product() {
     if (num_products < MAX_PRODUCTS) {
         Product new_product;
         new_product.id = next_product_id++;
-        printf("Enter product name: ");
+        printf("Enter product name (or type 'back' to return): ");
         scanf("%s", new_product.name);
+
+        if (strcmp(new_product.name, "back") == 0) {
+            printf("Returning to the main menu...\n");
+            return;
+        }
+
         new_product.quantity = get_valid_int("Enter quantity (>=0): ");
         new_product.price = get_valid_float("Enter price (>=0): ");
 
@@ -123,7 +129,11 @@ void add_product() {
 
 void delete_product() {
     clear_screen();
-    int id = get_valid_int("Enter product ID to delete: ");
+    int id = get_valid_int("Enter product ID to delete (or type '0' to go back): ");
+    if (id == 0) {
+        printf("Returning to the main menu...\n");
+        return;
+    }
 
     int found = 0;
     for (int i = 0; i < num_products; i++) {
@@ -145,7 +155,11 @@ void delete_product() {
 
 void restock_product() {
     clear_screen();
-    int id = get_valid_int("Enter product ID to restock: ");
+    int id = get_valid_int("Enter product ID to restock (or type '0' to go back): ");
+    if (id == 0) {
+        printf("Returning to the main menu...\n");
+        return;
+    }
 
     int found = 0;
     for (int i = 0; i < num_products; i++) {
@@ -169,7 +183,11 @@ void restock_product() {
 
 void edit_product() {
     clear_screen();
-    int id = get_valid_int("Enter product ID to edit: ");
+    int id = get_valid_int("Enter product ID to edit (or type '0' to go back): ");
+    if (id == 0) {
+        printf("Returning to the main menu...\n");
+        return;
+    }
 
     int found = 0;
     for (int i = 0; i < num_products; i++) {
@@ -205,8 +223,13 @@ void create_bill() {
             int quantity;
             int found = 0;
 
-            printf("Enter product ID or name: ");
+            printf("Enter product ID or name (or type 'back' to return): ");
             scanf("%s", input);
+
+            if (strcmp(input, "back") == 0) {
+                printf("Returning to the main menu...\n");
+                return;
+            }
 
             if (isdigit(input[0])) {
                 int id = atoi(input);
@@ -267,15 +290,12 @@ void create_bill() {
         printf("Items Purchased:\n");
         for (int i = 0; i < new_bill.num_items; i++) {
             for (int j = 0; j < num_products; j++) {
-                if (new_bill.product_ids[i] == products[j].id) {
-                    printf("Product: %s, Quantity: %d, Price: %.2f\n",
-                        products[j].name, new_bill.quantities[i], products[j].price);
-                    break;
+                if (products[j].id == new_bill.product_ids[i]) {
+                    printf("%s (x%d)\n", products[j].name, new_bill.quantities[i]);
                 }
             }
         }
         printf("Total Amount: %.2f\n", new_bill.total_amount);
-        printf("----------------------\n");
     } else {
         printf("Bill list is full!\n");
     }
@@ -287,11 +307,11 @@ void display_products() {
         printf("No products available.\n");
     } else {
         printf("Product List:\n");
-        printf("ID    Name                Quantity    Price\n");
-        printf("--------------------------------------------\n");
+        printf("ID   Name                Quantity    Price\n");
+        printf("------------------------------------------\n");
         for (int i = 0; i < num_products; i++) {
-            printf("%-5d %-20s %-10d %-10.2f\n",
-                products[i].id, products[i].name, products[i].quantity, products[i].price);
+            printf("%-4d %-20s %-10d %.2f\n",
+                   products[i].id, products[i].name, products[i].quantity, products[i].price);
         }
     }
 }
@@ -306,14 +326,19 @@ void display_bills() {
         printf("--------------------------------------------\n");
         for (int i = 0; i < num_bills; i++) {
             printf("%-8d %-20s %-10.2f\n",
-                bills[i].bill_id, bills[i].timestamp, bills[i].total_amount);
+                   bills[i].bill_id, bills[i].timestamp, bills[i].total_amount);
         }
     }
 }
 
 void edit_bill() {
     clear_screen();
-    int bill_id = get_valid_int("Enter bill ID to edit: ");
+    int bill_id = get_valid_int("Enter bill ID to edit (or type '0' to go back): ");
+    if (bill_id == 0) {
+        printf("Returning to the main menu...\n");
+        return;
+    }
+
     int found = 0;
 
     for (int i = 0; i < num_bills; i++) {
@@ -351,6 +376,7 @@ int main() {
 
     int choice;
     do {
+        clear_screen();
         printf("\n--- Store Management System ---\n");
         printf("1. Add Product\n");
         printf("2. Delete Product\n");
