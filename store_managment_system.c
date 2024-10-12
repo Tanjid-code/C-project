@@ -6,7 +6,6 @@
 
 #define MAX_PRODUCTS 100
 #define MAX_BILLS 100
-#define MAX_CUSTOMERS 100
 #define MAX_NAME_LENGTH 50
 
 #ifdef _WIN32
@@ -21,14 +20,8 @@ typedef struct {
     int quantity;
     float price;
     float discount;  // Discount percentage
-    char category[MAX_NAME_LENGTH]; // Product category
+    char type[MAX_NAME_LENGTH]; // Product type: liquid, weight, or piece
 } Product;
-
-typedef struct {
-    int id;
-    char name[MAX_NAME_LENGTH];
-    char email[MAX_NAME_LENGTH]; // Example of customer detail
-} Customer;
 
 typedef struct {
     int bill_id;
@@ -46,9 +39,6 @@ int next_product_id = 1;
 
 Bill bills[MAX_BILLS];
 int num_bills = 0;
-
-Customer customers[MAX_CUSTOMERS];
-int num_customers = 0;
 
 void clear_screen() {
     system(CLEAR);
@@ -88,22 +78,6 @@ void load_bills() {
     }
 }
 
-void save_customers() {
-    FILE *fp = fopen("customers.dat", "wb");
-    fwrite(&num_customers, sizeof(int), 1, fp);
-    fwrite(customers, sizeof(Customer), num_customers, fp);
-    fclose(fp);
-}
-
-void load_customers() {
-    FILE *fp = fopen("customers.dat", "rb");
-    if (fp) {
-        fread(&num_customers, sizeof(int), 1, fp);
-        fread(customers, sizeof(Customer), num_customers, fp);
-        fclose(fp);
-    }
-}
-
 int get_valid_int(const char *prompt) {
     int value;
     printf("%s", prompt);
@@ -132,11 +106,11 @@ void get_current_timestamp(char *buffer, int length) {
 
 void display_products_list() {
     printf("Existing Product List:\n");
-    printf("ID   Name                Quantity    Price     Discount   Category\n");
+    printf("ID   Name                Quantity    Price     Discount   Type\n");
     printf("-------------------------------------------------------------\n");
     for (int i = 0; i < num_products; i++) {
         printf("%-4d %-20s %-10d %.2f       %.2f       %s\n",
-               products[i].id, products[i].name, products[i].quantity, products[i].price, products[i].discount, products[i].category);
+               products[i].id, products[i].name, products[i].quantity, products[i].price, products[i].discount, products[i].type);
     }
 }
 
@@ -156,8 +130,8 @@ void add_product() {
         new_product.quantity = get_valid_int("Enter quantity (>=0): ");
         new_product.price = get_valid_float("Enter price (>=0): ");
         new_product.discount = get_valid_float("Enter discount percentage (0-100): ");
-        printf("Enter category: ");
-        scanf("%s", new_product.category);
+        printf("Enter product type (liquid, weight, piece): ");
+        scanf("%s", new_product.type);
 
         products[num_products] = new_product;
         num_products++;
@@ -176,13 +150,35 @@ void search_product() {
     scanf("%s", search_term);
 
     printf("Search Results:\n");
-    printf("ID   Name                Quantity    Price     Discount   Category\n");
+    printf("ID   Name                Quantity    Price     Discount   Type\n");
     printf("-------------------------------------------------------------\n");
     for (int i = 0; i < num_products; i++) {
         if (strcmp(products[i].name, search_term) == 0 || atoi(search_term) == products[i].id) {
             printf("%-4d %-20s %-10d %.2f       %.2f       %s\n",
-                   products[i].id, products[i].name, products[i].quantity, products[i].price, products[i].discount, products[i].category);
+                   products[i].id, products[i].name, products[i].quantity, products[i].price, products[i].discount, products[i].type);
         }
+    }
+}
+
+void edit_product() {
+    clear_screen();
+    int id = get_valid_int("Enter the product ID to edit: ");
+    int found = 0;
+
+    for (int i = 0; i < num_products; i++) {
+        if (products[i].id == id) {
+            found = 1;
+            printf("Editing product: %s\n", products[i].name);
+            products[i].price = get_valid_float("Enter new price: ");
+            products[i].discount = get_valid_float("Enter new discount percentage: ");
+            save_products();
+            printf("Product updated successfully.\n");
+            break;
+        }
+    }
+
+    if (!found) {
+        printf("Product with ID %d not found.\n", id);
     }
 }
 
@@ -209,32 +205,8 @@ void sales_report() {
     }
 }
 
-void add_customer() {
-    clear_screen();
-    if (num_customers < MAX_CUSTOMERS) {
-        Customer new_customer;
-        new_customer.id = num_customers + 1;
-        printf("Enter customer name: ");
-        scanf("%s", new_customer.name);
-        printf("Enter customer email: ");
-        scanf("%s", new_customer.email);
-
-        customers[num_customers] = new_customer;
-        num_customers++;
-
-        save_customers();
-        printf("Customer added successfully.\n");
-    } else {
-        printf("Customer list is full!\n");
-    }
-}
-
 void create_bill() {
     clear_screen();
-
-    // Display the product list before creating a bill
-    display_products_list();
-
     if (num_bills < MAX_BILLS) {
         Bill new_bill;
         new_bill.bill_id = num_bills + 1;
@@ -243,6 +215,8 @@ void create_bill() {
         new_bill.total_tax = 0.0;
 
         get_current_timestamp(new_bill.timestamp, sizeof(new_bill.timestamp));
+
+        display_products_list();  // Show product list before starting the bill
 
         int cont = 1;
         while (cont) {
@@ -308,36 +282,28 @@ void create_bill() {
         new_bill.total_amount += new_bill.total_tax;
         bills[num_bills] = new_bill;
         num_bills++;
-
         save_bills();
-        save_products(); // Save updated products
         printf("Bill created successfully.\n");
     } else {
-        printf("Bill limit reached!\n");
+        printf("Bill list is full!\n");
     }
-}
-
-void display_menu() {
-    clear_screen();
-    printf("Store Management System:\n");
-    printf("1. Add Product\n");
-    printf("2. Search Product\n");
-    printf("3. Inventory Alerts\n");
-    printf("4. Create Bill\n");
-    printf("5. Sales Report\n");
-    printf("6. Add Customer\n");
-    printf("7. Exit\n");
 }
 
 int main() {
     load_products();
     load_bills();
-    load_customers();
-
-    while (1) {
-        display_menu();
-
-        int choice = get_valid_int("Enter your choice: ");
+    int choice;
+    do {
+        clear_screen();
+        printf("Store Management System\n");
+        printf("1. Add Product\n");
+        printf("2. Search Product\n");
+        printf("3. Inventory Alerts\n");
+        printf("4. Sales Report\n");
+        printf("5. Create Bill\n");
+        printf("6. Edit Product Price\n");
+        printf("0. Exit\n");
+        choice = get_valid_int("Enter your choice: ");
 
         switch (choice) {
             case 1:
@@ -350,25 +316,24 @@ int main() {
                 inventory_alerts();
                 break;
             case 4:
-                create_bill();
-                break;
-            case 5:
                 sales_report();
                 break;
-            case 6:
-                add_customer();
+            case 5:
+                create_bill();
                 break;
-            case 7:
-                printf("Exiting the program...\n");
-                exit(0);
+            case 6:
+                edit_product();
+                break;
+            case 0:
+                printf("Exiting...\n");
+                break;
             default:
-                printf("Invalid choice! Please select a valid option.\n");
+                printf("Invalid choice. Please try again.\n");
         }
-
         printf("Press Enter to continue...");
-        getchar(); // To consume the newline character
-        getchar(); // To wait for user input
-    }
+        getchar();
+        getchar();
+    } while (choice != 0);
 
     return 0;
 }
