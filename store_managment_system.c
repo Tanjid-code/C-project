@@ -6,8 +6,8 @@
 
 #define MAX_PRODUCTS 100
 #define MAX_BILLS 100
+#define MAX_CUSTOMERS 100
 #define MAX_NAME_LENGTH 50
-#define MAX_UNIT_LENGTH 10
 
 #ifdef _WIN32
 #define CLEAR "cls"
@@ -20,15 +20,23 @@ typedef struct {
     char name[MAX_NAME_LENGTH];
     int quantity;
     float price;
-    char unit[MAX_UNIT_LENGTH];  // Unit type (e.g., kg, liters, pieces)
+    float discount;  // Discount percentage
+    char category[MAX_NAME_LENGTH]; // Product category
 } Product;
+
+typedef struct {
+    int id;
+    char name[MAX_NAME_LENGTH];
+    char email[MAX_NAME_LENGTH]; // Example of customer detail
+} Customer;
 
 typedef struct {
     int bill_id;
     int product_ids[MAX_PRODUCTS];
-    float quantities[MAX_PRODUCTS];  // To support fractional quantities for liquids/weights
+    int quantities[MAX_PRODUCTS];
     int num_items;
     float total_amount;
+    float total_tax;
     char timestamp[20];
 } Bill;
 
@@ -39,6 +47,9 @@ int next_product_id = 1;
 Bill bills[MAX_BILLS];
 int num_bills = 0;
 
+Customer customers[MAX_CUSTOMERS];
+int num_customers = 0;
+
 void clear_screen() {
     system(CLEAR);
 }
@@ -46,7 +57,7 @@ void clear_screen() {
 void save_products() {
     FILE *fp = fopen("products.dat", "wb");
     fwrite(&num_products, sizeof(int), 1, fp);
-    fwrite(&next_product_id, sizeof(int), 1, fp); // Save next product ID
+    fwrite(&next_product_id, sizeof(int), 1, fp);
     fwrite(products, sizeof(Product), num_products, fp);
     fclose(fp);
 }
@@ -55,7 +66,7 @@ void load_products() {
     FILE *fp = fopen("products.dat", "rb");
     if (fp) {
         fread(&num_products, sizeof(int), 1, fp);
-        fread(&next_product_id, sizeof(int), 1, fp); // Load next product ID
+        fread(&next_product_id, sizeof(int), 1, fp);
         fread(products, sizeof(Product), num_products, fp);
         fclose(fp);
     }
@@ -73,6 +84,22 @@ void load_bills() {
     if (fp) {
         fread(&num_bills, sizeof(int), 1, fp);
         fread(bills, sizeof(Bill), num_bills, fp);
+        fclose(fp);
+    }
+}
+
+void save_customers() {
+    FILE *fp = fopen("customers.dat", "wb");
+    fwrite(&num_customers, sizeof(int), 1, fp);
+    fwrite(customers, sizeof(Customer), num_customers, fp);
+    fclose(fp);
+}
+
+void load_customers() {
+    FILE *fp = fopen("customers.dat", "rb");
+    if (fp) {
+        fread(&num_customers, sizeof(int), 1, fp);
+        fread(customers, sizeof(Customer), num_customers, fp);
         fclose(fp);
     }
 }
@@ -105,19 +132,16 @@ void get_current_timestamp(char *buffer, int length) {
 
 void display_products_list() {
     printf("Existing Product List:\n");
-    printf("ID   Name                Quantity    Unit     Price\n");
-    printf("---------------------------------------------------\n");
+    printf("ID   Name                Quantity    Price     Discount   Category\n");
+    printf("-------------------------------------------------------------\n");
     for (int i = 0; i < num_products; i++) {
-        printf("%-4d %-20s %-10d %-7s %.2f\n",
-               products[i].id, products[i].name, products[i].quantity,
-               products[i].unit, products[i].price);
+        printf("%-4d %-20s %-10d %.2f       %.2f       %s\n",
+               products[i].id, products[i].name, products[i].quantity, products[i].price, products[i].discount, products[i].category);
     }
 }
 
 void add_product() {
     clear_screen();
-    display_products_list();  // Show product list before adding
-
     if (num_products < MAX_PRODUCTS) {
         Product new_product;
         new_product.id = next_product_id++;
@@ -131,9 +155,9 @@ void add_product() {
 
         new_product.quantity = get_valid_int("Enter quantity (>=0): ");
         new_product.price = get_valid_float("Enter price (>=0): ");
-
-        printf("Enter unit type (e.g., kg, liters, pieces): ");
-        scanf("%s", new_product.unit);
+        new_product.discount = get_valid_float("Enter discount percentage (0-100): ");
+        printf("Enter category: ");
+        scanf("%s", new_product.category);
 
         products[num_products] = new_product;
         num_products++;
@@ -145,110 +169,85 @@ void add_product() {
     }
 }
 
-void delete_product() {
+void search_product() {
     clear_screen();
-    display_products_list();  // Show product list before deleting
+    char search_term[MAX_NAME_LENGTH];
+    printf("Enter product name or ID to search: ");
+    scanf("%s", search_term);
 
-    int id = get_valid_int("Enter product ID to delete (or type '0' to go back): ");
-    if (id == 0) {
-        printf("Returning to the main menu...\n");
-        return;
-    }
-
-    int found = 0;
+    printf("Search Results:\n");
+    printf("ID   Name                Quantity    Price     Discount   Category\n");
+    printf("-------------------------------------------------------------\n");
     for (int i = 0; i < num_products; i++) {
-        if (products[i].id == id) {
-            found = 1;
-            for (int j = i; j < num_products - 1; j++) {
-                products[j] = products[j + 1];
-            }
-            num_products--;
-            save_products();
-            printf("Product deleted successfully.\n");
-            break;
+        if (strcmp(products[i].name, search_term) == 0 || atoi(search_term) == products[i].id) {
+            printf("%-4d %-20s %-10d %.2f       %.2f       %s\n",
+                   products[i].id, products[i].name, products[i].quantity, products[i].price, products[i].discount, products[i].category);
         }
-    }
-    if (!found) {
-        printf("Product not found!\n");
     }
 }
 
-void restock_product() {
+void inventory_alerts() {
     clear_screen();
-    display_products_list();  // Show product list before restocking
-
-    int id = get_valid_int("Enter product ID to restock (or type '0' to go back): ");
-    if (id == 0) {
-        printf("Returning to the main menu...\n");
-        return;
-    }
-
-    int found = 0;
+    printf("Low Stock Alerts:\n");
+    printf("ID   Name                Quantity\n");
+    printf("----------------------------------\n");
     for (int i = 0; i < num_products; i++) {
-        if (products[i].id == id) {
-            found = 1;
-            int quantity = get_valid_int("Enter quantity to add: ");
-            if (quantity >= 0) {
-                products[i].quantity += quantity;
-                save_products();
-                printf("Product restocked successfully.\n");
-            } else {
-                printf("Invalid quantity!\n");
-            }
-            break;
+        if (products[i].quantity < 5) { // Threshold can be adjusted
+            printf("%-4d %-20s %-10d\n", products[i].id, products[i].name, products[i].quantity);
         }
-    }
-    if (!found) {
-        printf("Product not found!\n");
     }
 }
 
-void edit_product() {
+void sales_report() {
     clear_screen();
-    display_products_list();  // Show product list before editing
-
-    int id = get_valid_int("Enter product ID to edit (or type '0' to go back): ");
-    if (id == 0) {
-        printf("Returning to the main menu...\n");
-        return;
+    printf("Sales Report:\n");
+    printf("Bill ID  Date and Time         Total Amount\n");
+    printf("--------------------------------------------\n");
+    for (int i = 0; i < num_bills; i++) {
+        printf("%-8d %-20s %.2f\n",
+               bills[i].bill_id, bills[i].timestamp, bills[i].total_amount);
     }
+}
 
-    int found = 0;
-    for (int i = 0; i < num_products; i++) {
-        if (products[i].id == id) {
-            found = 1;
-            printf("Enter new name: ");
-            scanf("%s", products[i].name);
-            products[i].quantity = get_valid_int("Enter new quantity (>=0): ");
-            products[i].price = get_valid_float("Enter new price (>=0): ");
-            printf("Enter new unit type: ");
-            scanf("%s", products[i].unit);
-            save_products();
-            printf("Product updated successfully.\n");
-            break;
-        }
-    }
-    if (!found) {
-        printf("Product not found!\n");
+void add_customer() {
+    clear_screen();
+    if (num_customers < MAX_CUSTOMERS) {
+        Customer new_customer;
+        new_customer.id = num_customers + 1;
+        printf("Enter customer name: ");
+        scanf("%s", new_customer.name);
+        printf("Enter customer email: ");
+        scanf("%s", new_customer.email);
+
+        customers[num_customers] = new_customer;
+        num_customers++;
+
+        save_customers();
+        printf("Customer added successfully.\n");
+    } else {
+        printf("Customer list is full!\n");
     }
 }
 
 void create_bill() {
     clear_screen();
-    display_products_list();  // Show product list before creating bill
+
+    // Display the product list before creating a bill
+    display_products_list();
 
     if (num_bills < MAX_BILLS) {
         Bill new_bill;
         new_bill.bill_id = num_bills + 1;
         new_bill.num_items = 0;
         new_bill.total_amount = 0.0;
+        new_bill.total_tax = 0.0;
 
         get_current_timestamp(new_bill.timestamp, sizeof(new_bill.timestamp));
 
         int cont = 1;
         while (cont) {
             char input[MAX_NAME_LENGTH];
-            float quantity;
+            int quantity;
             int found = 0;
 
             printf("Enter product ID or name (or type 'back' to return): ");
@@ -261,20 +260,19 @@ void create_bill() {
 
             if (isdigit(input[0])) {
                 int id = atoi(input);
-
                 for (int i = 0; i < num_products; i++) {
                     if (products[i].id == id) {
                         found = 1;
-                        quantity = get_valid_float("Enter quantity: ");
+                        quantity = get_valid_int("Enter quantity: ");
                         if (products[i].quantity >= quantity) {
                             new_bill.product_ids[new_bill.num_items] = id;
                             new_bill.quantities[new_bill.num_items] = quantity;
-                            new_bill.total_amount += quantity * products[i].price;
+                            float discounted_price = products[i].price * (1 - products[i].discount / 100);
+                            new_bill.total_amount += quantity * discounted_price;
                             products[i].quantity -= quantity;
                             new_bill.num_items++;
-                            printf("Added %s to the bill.\n", products[i].name);
                         } else {
-                            printf("Not enough stock for %s.\n", products[i].name);
+                            printf("Insufficient stock for product ID %d!\n", id);
                         }
                         break;
                     }
@@ -283,16 +281,16 @@ void create_bill() {
                 for (int i = 0; i < num_products; i++) {
                     if (strcmp(products[i].name, input) == 0) {
                         found = 1;
-                        quantity = get_valid_float("Enter quantity: ");
+                        quantity = get_valid_int("Enter quantity: ");
                         if (products[i].quantity >= quantity) {
                             new_bill.product_ids[new_bill.num_items] = products[i].id;
                             new_bill.quantities[new_bill.num_items] = quantity;
-                            new_bill.total_amount += quantity * products[i].price;
+                            float discounted_price = products[i].price * (1 - products[i].discount / 100);
+                            new_bill.total_amount += quantity * discounted_price;
                             products[i].quantity -= quantity;
                             new_bill.num_items++;
-                            printf("Added %s to the bill.\n", products[i].name);
                         } else {
-                            printf("Not enough stock for %s.\n", products[i].name);
+                            printf("Insufficient stock for product %s!\n", products[i].name);
                         }
                         break;
                     }
@@ -300,77 +298,77 @@ void create_bill() {
             }
 
             if (!found) {
-                printf("Product not found.\n");
+                printf("Product not found!\n");
             }
 
-            printf("Do you want to add more items? (1 for yes, 0 for no): ");
-            scanf("%d", &cont);
+            cont = get_valid_int("Do you want to add more items to the bill? (1 = Yes, 0 = No): ");
         }
 
+        new_bill.total_tax = new_bill.total_amount * 0.15; // Example tax rate of 15%
+        new_bill.total_amount += new_bill.total_tax;
         bills[num_bills] = new_bill;
         num_bills++;
+
         save_bills();
-        save_products();  // Save product changes after billing
-        printf("Bill created successfully. Total: %.2f\n", new_bill.total_amount);
+        save_products(); // Save updated products
+        printf("Bill created successfully.\n");
     } else {
-        printf("Cannot create more bills. Bill storage full.\n");
+        printf("Bill limit reached!\n");
     }
 }
 
-void view_bills() {
+void display_menu() {
     clear_screen();
-    printf("Bill List:\n");
-    printf("ID   Timestamp            Total Amount\n");
-    printf("--------------------------------------\n");
-    for (int i = 0; i < num_bills; i++) {
-        printf("%-4d %-20s %.2f\n", bills[i].bill_id, bills[i].timestamp, bills[i].total_amount);
-    }
+    printf("Store Management System:\n");
+    printf("1. Add Product\n");
+    printf("2. Search Product\n");
+    printf("3. Inventory Alerts\n");
+    printf("4. Create Bill\n");
+    printf("5. Sales Report\n");
+    printf("6. Add Customer\n");
+    printf("7. Exit\n");
 }
 
-void main_menu() {
-    int choice;
+int main() {
+    load_products();
+    load_bills();
+    load_customers();
+
     while (1) {
-        clear_screen();
-        printf("1. Add Product\n");
-        printf("2. Delete Product\n");
-        printf("3. Restock Product\n");
-        printf("4. Edit Product\n");
-        printf("5. Create Bill\n");
-        printf("6. View Bills\n");
-        printf("7. Exit\n");
-        printf("Enter your choice: ");
-        choice = get_valid_int("");
+        display_menu();
+
+        int choice = get_valid_int("Enter your choice: ");
 
         switch (choice) {
             case 1:
                 add_product();
                 break;
             case 2:
-                delete_product();
+                search_product();
                 break;
             case 3:
-                restock_product();
+                inventory_alerts();
                 break;
             case 4:
-                edit_product();
-                break;
-            case 5:
                 create_bill();
                 break;
+            case 5:
+                sales_report();
+                break;
             case 6:
-                view_bills();
+                add_customer();
                 break;
             case 7:
+                printf("Exiting the program...\n");
                 exit(0);
             default:
-                printf("Invalid choice. Try again.\n");
+                printf("Invalid choice! Please select a valid option.\n");
         }
-    }
-}
 
-int main() {
-    load_products();
-    load_bills();
-    main_menu();
+        printf("Press Enter to continue...");
+        getchar(); // To consume the newline character
+        getchar(); // To wait for user input
+    }
+
     return 0;
 }
