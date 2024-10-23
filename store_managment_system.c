@@ -216,8 +216,6 @@ void create_bill() {
 
         get_current_timestamp(new_bill.timestamp, sizeof(new_bill.timestamp));
 
-        display_products_list();  // Show product list before starting the bill
-
         int cont = 1;
         while (cont) {
             char input[MAX_NAME_LENGTH];
@@ -264,7 +262,7 @@ void create_bill() {
                             products[i].quantity -= quantity;
                             new_bill.num_items++;
                         } else {
-                            printf("Insufficient stock for product %s!\n", products[i].name);
+                            printf("Insufficient stock for product '%s'!\n", products[i].name);
                         }
                         break;
                     }
@@ -275,15 +273,14 @@ void create_bill() {
                 printf("Product not found!\n");
             }
 
-            cont = get_valid_int("Do you want to add more items to the bill? (1 = Yes, 0 = No): ");
+            cont = get_valid_int("Enter 1 to add another item, or 0 to finish the bill: ");
         }
 
-        new_bill.total_tax = new_bill.total_amount * 0.15; // Example tax rate of 15%
-        new_bill.total_amount += new_bill.total_tax;
+        save_products();
         bills[num_bills] = new_bill;
         num_bills++;
         save_bills();
-        printf("Bill created successfully.\n");
+        printf("Bill created successfully!\n");
     } else {
         printf("Bill list is full!\n");
     }
@@ -293,17 +290,18 @@ int main() {
     load_products();
     load_bills();
     int choice;
+
     do {
         clear_screen();
         printf("Store Management System\n");
         printf("1. Add Product\n");
         printf("2. Search Product\n");
-        printf("3. Inventory Alerts\n");
-        printf("4. Sales Report\n");
+        printf("3. Edit Product\n");
+        printf("4. Low Stock Alerts\n");
         printf("5. Create Bill\n");
-        printf("6. Edit Product Price\n");
-        printf("0. Exit\n");
-        choice = get_valid_int("Enter your choice: ");
+        printf("6. Sales Report\n");
+        printf("7. Exit\n");
+        choice = get_valid_int("Choose an option: ");
 
         switch (choice) {
             case 1:
@@ -313,27 +311,28 @@ int main() {
                 search_product();
                 break;
             case 3:
-                inventory_alerts();
+                edit_product();
                 break;
             case 4:
-                sales_report();
+                inventory_alerts();
                 break;
             case 5:
                 create_bill();
                 break;
             case 6:
-                edit_product();
+                sales_report();
                 break;
-            case 0:
-                printf("Exiting...\n");
+            case 7:
+                printf("Exiting the program. Goodbye!\n");
                 break;
             default:
-                printf("Invalid choice. Please try again.\n");
+                printf("Invalid option. Please choose again.\n");
         }
+
         printf("Press Enter to continue...");
-        getchar();
-        getchar();
-    } while (choice != 0);
+        while (getchar() != '\n'); // Clear buffer
+        getchar(); // Wait for Enter
+    } while (choice != 7);
 
     return 0;
 }
