@@ -45,38 +45,67 @@ void clear_screen() {
 }
 
 void save_products() {
-    FILE *fp = fopen("products.dat", "wb");
-    fwrite(&num_products, sizeof(int), 1, fp);
-    fwrite(&next_product_id, sizeof(int), 1, fp);
-    fwrite(products, sizeof(Product), num_products, fp);
-    fclose(fp);
+    FILE *fp = fopen("products.csv", "w");
+    if (fp) {
+        fprintf(fp, "%d\n", num_products); // Save number of products
+        fprintf(fp, "%d\n", next_product_id); // Save the next product ID
+        for (int i = 0; i < num_products; i++) {
+            fprintf(fp, "%d,%s,%d,%.2f,%.2f,%s\n", products[i].id, products[i].name, products[i].quantity, products[i].price, products[i].discount, products[i].type);
+        }
+        fclose(fp);
+    } else {
+        printf("Error: Unable to open file for saving products.\n");
+    }
 }
 
 void load_products() {
-    FILE *fp = fopen("products.dat", "rb");
+    FILE *fp = fopen("products.csv", "r");
     if (fp) {
-        fread(&num_products, sizeof(int), 1, fp);
-        fread(&next_product_id, sizeof(int), 1, fp);
-        fread(products, sizeof(Product), num_products, fp);
+        fscanf(fp, "%d\n", &num_products); // Read number of products
+        fscanf(fp, "%d\n", &next_product_id); // Read the next product ID
+        for (int i = 0; i < num_products; i++) {
+            fscanf(fp, "%d,%[^,],%d,%f,%f,%[^,\n]\n", &products[i].id, products[i].name, &products[i].quantity, &products[i].price, &products[i].discount, products[i].type);
+        }
         fclose(fp);
+    } else {
+        printf("No product data found. Starting fresh.\n");
     }
 }
 
+
 void save_bills() {
-    FILE *fp = fopen("bills.dat", "wb");
-    fwrite(&num_bills, sizeof(int), 1, fp);
-    fwrite(bills, sizeof(Bill), num_bills, fp);
-    fclose(fp);
+    FILE *fp = fopen("bills.csv", "w");
+    if (fp) {
+        fprintf(fp, "%d\n", num_bills); // Save number of bills
+        for (int i = 0; i < num_bills; i++) {
+            fprintf(fp, "%d,%d,%.2f,%.2f,%s\n", bills[i].bill_id, bills[i].num_items, bills[i].total_amount, bills[i].total_tax, bills[i].timestamp);
+            for (int j = 0; j < bills[i].num_items; j++) {
+                fprintf(fp, "%d,%d\n", bills[i].product_ids[j], bills[i].quantities[j]);
+            }
+        }
+        fclose(fp);
+    } else {
+        printf("Error: Unable to open file for saving bills.\n");
+    }
 }
 
 void load_bills() {
-    FILE *fp = fopen("bills.dat", "rb");
+    FILE *fp = fopen("bills.csv", "r");
     if (fp) {
-        fread(&num_bills, sizeof(int), 1, fp);
-        fread(bills, sizeof(Bill), num_bills, fp);
+        fscanf(fp, "%d\n", &num_bills); // Read number of bills
+        for (int i = 0; i < num_bills; i++) {
+            fscanf(fp, "%d,%d,%f,%f,%[^,\n]\n", &bills[i].bill_id, &bills[i].num_items, &bills[i].total_amount, &bills[i].total_tax, bills[i].timestamp);
+            for (int j = 0; j < bills[i].num_items; j++) {
+                fscanf(fp, "%d,%d\n", &bills[i].product_ids[j], &bills[i].quantities[j]);
+            }
+        }
         fclose(fp);
+    } else {
+        printf("No bill data found. Starting fresh.\n");
     }
 }
+
+
 
 int get_valid_int(const char *prompt) {
     int value;
